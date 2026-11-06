@@ -1,0 +1,473 @@
+@{
+    ViewData["Title"] = "Mis Intercambios - InterBook";
+}
+
+<div class="container my-5">
+    <h2 class="section-title mb-4"> Mis Intercambios</h2>
+
+    <ul class="nav nav-tabs mb-4" id="intercambiosTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="pendientes-tab" data-bs-toggle="tab"
+                    data-bs-target="#pendientes" type="button">
+                Solicitudes Recibidas <span class="badge bg-danger" id="badge-pendientes">0</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="enviadas-tab" data-bs-toggle="tab"
+                    data-bs-target="#enviadas" type="button">
+                Solicitudes Enviadas <span class="badge bg-primary" id="badge-enviadas">0</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="historial-tab" data-bs-toggle="tab"
+                    data-bs-target="#historial" type="button">
+                Historial
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="intercambiosTabContent">
+        <div class="tab-pane fade show active" id="pendientes">
+            <div id="loading-pendientes" class="text-center my-5">
+                <div class="spinner-border text-primary"></div>
+                <p class="mt-3">Cargando solicitudes...</p>
+            </div>
+            <div id="sin-pendientes" class="text-center my-5" style="display: none;">
+                <i class="bi bi-inbox" style="font-size: 4rem; color: #ccc;"></i>
+                <h4 class="mt-3">No tienes solicitudes pendientes</h4>
+            </div>
+            <div id="lista-pendientes" class="row g-4"></div>
+        </div>
+
+        <div class="tab-pane fade" id="enviadas">
+            <div id="loading-enviadas" class="text-center my-5">
+                <div class="spinner-border text-primary"></div>
+                <p class="mt-3">Cargando solicitudes...</p>
+            </div>
+            <div id="sin-enviadas" class="text-center my-5" style="display: none;">
+                <i class="bi bi-send" style="font-size: 4rem; color: #ccc;"></i>
+                <h4 class="mt-3">No has enviado solicitudes</h4>
+            </div>
+            <div id="lista-enviadas" class="row g-4"></div>
+        </div>
+
+        <div class="tab-pane fade" id="historial">
+            <div id="loading-historial" class="text-center my-5">
+                <div class="spinner-border text-primary"></div>
+                <p class="mt-3">Cargando historial...</p>
+            </div>
+            <div id="sin-historial" class="text-center my-5" style="display: none;">
+                <i class="bi bi-clock-history" style="font-size: 4rem; color: #ccc;"></i>
+                <h4 class="mt-3">Aún no has completado intercambios</h4>
+            </div>
+            <div id="lista-historial" class="row g-4"></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+          document.addEventListener('DOMContentLoaded', async () => {
+             const token = localStorage.getItem('token');
+                if (!token) {
+                   window.location.href = '/Home/Login';
+         return;
+             }
+
+            await cargarSolicitudesPendientes();
+
+                // Cargar otras tabs cuando se activen
+              document.getElementById('enviadas-tab').addEventListener('click', cargarSolicitudesEnviadas);
+        document.getElementById('historial-tab').addEventListener('click', cargarHistorialIntercambios);
+         });
+
+          async function cargarSolicitudesPendientes() {
+             const token = localStorage.getItem('token');
+             const loading = document.getElementById('loading-pendientes');
+               const sinDatos = document.getElementById('sin-pendientes');
+              const lista = document.getElementById('lista-pendientes');
+
+           try {
+              const response = await fetch('/api/intercambios/pendientes', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+            const data = await response.json();
+             loading.style.display = 'none';
+
+         if (data.length === 0) {
+         sinDatos.style.display = 'block';
+              document.getElementById('badge-pendientes').textContent = '0';
+          } else {
+            document.getElementById('badge-pendientes').textContent = data.length;
+          mostrarSolicitudesPendientes(data);
+               }
+         } catch (error) {
+         console.error('Error:', error);
+               loading.style.display = 'none';
+          }
+         }
+
+          function mostrarSolicitudesPendientes(solicitudes) {
+              const lista = document.getElementById('lista-pendientes');
+               lista.innerHTML = '';
+
+             solicitudes.forEach(s => {
+          const card = `
+           <div class="col-md-12">
+        <div class="card shadow-sm">
+         <div class="card-body">
+          <div class="row">
+              <div class="col-md-5">
+          <h6 class="text-success">Ellos ofrecen:</h6>
+          <div class="d-flex align-items-center">
+         <img src="${s.libroOfrecido.imagenUrl || 'https://via.placeholder.com/80x120'}"
+           alt="${s.libroOfrecido.titulo}" style="width: 60px; height: 90px; object-fit: cover;" class="me-3">
+            <div>
+              <strong>${s.libroOfrecido.titulo}</strong><br>
+           <small>${s.libroOfrecido.autor}</small><br>
+          <span class="badge bg-primary">${s.libroOfrecido.estadoFisico}</span>
+                 </div>
+         </div>
+        <p class="mt-2 mb-0"><small><i class="bi bi-person"></i> ${s.usuarioSolicitante.nombre}</small></p>
+        <p class="mb-0"><small><i class="bi bi-envelope"></i> ${s.usuarioSolicitante.email}</small></p>
+             <p class="mb-0"><small><i class="bi bi-telephone"></i> ${s.usuarioSolicitante.telefono}</small></p>
+            </div>
+               <div class="col-md-2 text-center d-flex align-items-center justify-content-center">
+               <i class="bi bi-arrow-left-right" style="font-size: 2rem; color: #6c757d;"></i>
+             </div>
+               <div class="col-md-5">
+              <h6 class="text-primary">Quieren tu libro:</h6>
+               <div class="d-flex align-items-center">
+           <img src="${s.libroSolicitado.imagenUrl || 'https://via.placeholder.com/80x120'}"
+           alt="${s.libroSolicitado.titulo}" style="width: 60px; height: 90px; object-fit: cover;" class="me-3">
+             <div>
+              <strong>${s.libroSolicitado.titulo}</strong><br>
+               <small>${s.libroSolicitado.autor}</small><br>
+          <span class="badge bg-primary">${s.libroSolicitado.estadoFisico}</span>
+               </div>
+        </div>
+             </div>
+         </div>
+            ${s.comentarioSolicitante ? `<div class="alert alert-info mt-3 mb-0"><strong>Mensaje:</strong> ${s.comentarioSolicitante}</div>` : ''}
+             ${s.lugarEncuentro ? `<p class="mt-2 mb-0"><i class="bi bi-geo-alt"></i> <strong>Lugar sugerido:</strong> ${s.lugarEncuentro}</p>` : ''}
+            ${s.fechaEncuentro ? `<p class="mb-0"><i class="bi bi-calendar"></i> <strong>Fecha sugerida:</strong> ${new Date(s.fechaEncuentro).toLocaleDateString()}</p>` : ''}
+               <div class="d-flex gap-2 mt-3">
+             <button class="btn btn-success" onclick="aceptarSolicitud(${s.id})">
+               <i class="bi bi-check-circle"></i> Aceptar
+             </button>
+           <button class="btn btn-danger" onclick="rechazarSolicitud(${s.id})">
+        <i class="bi bi-x-circle"></i> Rechazar
+                </button>
+              </div>
+         </div>
+          </div>
+              </div>
+         `;
+            lista.innerHTML += card;
+              });
+         }
+
+          async function cargarSolicitudesEnviadas() {
+          const token = localStorage.getItem('token');
+                 const loading = document.getElementById('loading-enviadas');
+          const sinDatos = document.getElementById('sin-enviadas');
+         const lista = document.getElementById('lista-enviadas');
+
+           if (lista.innerHTML) return; // Ya cargado
+
+        loading.style.display = 'block';
+
+                     try {
+           const response = await fetch('/api/intercambios/enviadas', {
+            headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+                  const data = await response.json();
+         loading.style.display = 'none';
+
+            if (data.length === 0) {
+              sinDatos.style.display = 'block';
+                document.getElementById('badge-enviadas').textContent = '0';
+          } else {
+            document.getElementById('badge-enviadas').textContent = data.filter(s => s.estado === 'Pendiente').length;
+        mostrarSolicitudesEnviadas(data);
+            }
+           } catch (error) {
+                   console.error('Error:', error);
+           loading.style.display = 'none';
+            }
+           }
+
+                function mostrarSolicitudesEnviadas(solicitudes) {
+        const lista = document.getElementById('lista-enviadas');
+           lista.innerHTML = '';
+
+               solicitudes.forEach(s => {
+               const estadoBadge = s.estado === 'Pendiente' ? 'warning' :
+            s.estado === 'Aceptado' ? 'success' : 'danger';
+
+         const card = `
+          <div class="col-md-12">
+            <div class="card shadow-sm">
+         <div class="card-body">
+               <div class="d-flex justify-content-between align-items-start mb-3">
+          <h6><span class="badge bg-${estadoBadge}">${s.estado}</span></h6>
+           <small class="text-muted">Enviado: ${new Date(s.fechaSolicitud).toLocaleDateString()}</small>
+          </div>
+            <div class="row">
+          <div class="col-md-5">
+            <h6 class="text-success">Tu libro:</h6>
+              <div class="d-flex align-items-center">
+              <img src="${s.libroOfrecido.imagenUrl || 'https://via.placeholder.com/80x120'}"
+          alt="${s.libroOfrecido.titulo}" style="width: 60px; height: 90px; object-fit: cover;" class="me-3">
+        <div>
+         <strong>${s.libroOfrecido.titulo}</strong><br>
+             <small>${s.libroOfrecido.autor}</small>
+               </div>
+                </div>
+         </div>
+          <div class="col-md-2 text-center d-flex align-items-center justify-content-center">
+           <i class="bi bi-arrow-left-right" style="font-size: 2rem;"></i>
+        </div>
+                 <div class="col-md-5">
+           <h6 class="text-primary">Libro solicitado:</h6>
+          <div class="d-flex align-items-center">
+         <img src="${s.libroSolicitado.imagenUrl || 'https://via.placeholder.com/80x120'}"
+             alt="${s.libroSolicitado.titulo}" style="width: 60px; height: 90px; object-fit: cover;" class="me-3">
+               <div>
+             <strong>${s.libroSolicitado.titulo}</strong><br>
+           <small>${s.libroSolicitado.autor}</small>
+          </div>
+         </div>
+          <p class="mt-2 mb-0"><small><i class="bi bi-person"></i> ${s.usuarioPropietario.nombre}</small></p>
+              </div>
+         </div>
+            ${s.estado === 'Pendiente' ? `
+             <div class="mt-3">
+            <button class="btn btn-sm btn-outline-danger" onclick="cancelarSolicitud(${s.id})">
+          <i class="bi bi-x-circle"></i> Cancelar Solicitud
+                </button>
+          </div>
+            ` : ''}
+          ${s.estado === 'Aceptado' ? `
+           <div class="alert alert-success mt-3">
+            <strong>¡Solicitud aceptada!</strong>
+          ${s.lugarEncuentro ? `<br>Lugar: ${s.lugarEncuentro}` : ''}
+              ${s.fechaEncuentro ? `<br>Fecha: ${new Date(s.fechaEncuentro).toLocaleDateString()}` : ''}
+          </div>
+                <button class="btn btn-success" onclick="completarIntercambio(${s.id})">
+               <i class="bi bi-check-circle"></i> Marcar como Completado
+            </button>
+          ` : ''}
+            </div>
+          </div>
+              </div>
+             `;
+              lista.innerHTML += card;
+          });
+          }
+
+          async function cargarHistorialIntercambios() {
+              const token = localStorage.getItem('token');
+             const loading = document.getElementById('loading-historial');
+               const sinDatos = document.getElementById('sin-historial');
+         const lista = document.getElementById('lista-historial');
+
+           if (lista.innerHTML) return;
+
+        loading.style.display = 'block';
+
+               try {
+           const response = await fetch('/api/intercambios/historial', {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+
+               const data = await response.json();
+            loading.style.display = 'none';
+
+           if (data.length === 0) {
+              sinDatos.style.display = 'block';
+             } else {
+                   mostrarHistorial(data);
+              }
+          } catch (error) {
+          console.error('Error:', error);
+             loading.style.display = 'none';
+           }
+        }
+
+          function mostrarHistorial(intercambios) {
+            const lista = document.getElementById('lista-historial');
+              lista.innerHTML = '';
+
+          intercambios.forEach(i => {
+                // Determinar el tipo y color del badge
+         const esCompletado = i.estado === 'Completado';
+              const esRechazado = i.estado === 'Rechazado';
+              const esCancelado = i.estado === 'Cancelado';
+
+              let badgeClass = 'bg-success';
+              let badgeTexto = 'Completado';
+                let borderClass = 'border-success';
+                let fechaMostrar = i.fechaCompletado;
+
+            if (esRechazado) {
+         badgeClass = 'bg-danger';
+             badgeTexto = 'Rechazado';
+             borderClass = 'border-danger';
+            fechaMostrar = i.fechaRespuesta;
+                } else if (esCancelado) {
+             badgeClass = 'bg-secondary';
+         badgeTexto = 'Cancelado';
+             borderClass = 'border-secondary';
+             fechaMostrar = i.fechaRespuesta || i.fechaSolicitud;
+            }
+
+          const card = `
+            <div class="col-md-12">
+           <div class="card shadow-sm ${borderClass}">
+             <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+                 <span class="badge ${badgeClass}">${badgeTexto}</span>
+              <small class="text-muted">${new Date(fechaMostrar).toLocaleDateString()}</small>
+          </div>
+           <div class="row">
+             <div class="col-md-5">
+          <h6 class="text-muted small">Libro ofrecido:</h6>
+                 <div class="d-flex align-items-center">
+              <img src="${i.libroOfrecido.imagenUrl || 'https://via.placeholder.com/60x90'}"
+               alt="${i.libroOfrecido.titulo}" style="width: 50px; height: 75px; object-fit: cover;" class="me-2">
+              <div>
+            <strong class="small">${i.libroOfrecido.titulo}</strong><br>
+              <small class="text-muted">${i.libroOfrecido.autor}</small>
+              </div>
+         </div>
+           </div>
+                 <div class="col-md-2 text-center d-flex align-items-center justify-content-center">
+              <i class="bi bi-arrow-left-right" style="font-size: 1.5rem; color: #6c757d;"></i>
+             </div>
+           <div class="col-md-5">
+             <h6 class="text-muted small">Libro solicitado:</h6>
+                <div class="d-flex align-items-center">
+             <img src="${i.libroSolicitado.imagenUrl || 'https://via.placeholder.com/60x90'}"
+                  alt="${i.libroSolicitado.titulo}" style="width: 50px; height: 75px; object-fit: cover;" class="me-2">
+               <div>
+                 <strong class="small">${i.libroSolicitado.titulo}</strong><br>
+               <small class="text-muted">${i.libroSolicitado.autor}</small>
+          </div>
+              </div>
+           </div>
+         </div>
+                ${i.comentarioPropietario ? `
+              <div class="alert alert-${esRechazado ? 'danger' : 'info'} mt-3 mb-0 small">
+          <strong>${esRechazado ? 'Motivo del rechazo:' : 'Comentario:'}</strong> ${i.comentarioPropietario}
+             </div>
+         ` : ''}
+             </div>
+                </div>
+             </div>
+            `;
+        lista.innerHTML += card;
+         });
+                }
+
+                async function aceptarSolicitud(id) {
+           const comentario = prompt('Mensaje para el solicitante (opcional):');
+         if (comentario === null) return;
+
+               await responderSolicitud(id, 'Aceptado', comentario);
+        }
+
+         async function rechazarSolicitud(id) {
+        if (!confirm('¿Estás seguro de rechazar esta solicitud?')) return;
+
+             const comentario = prompt('Motivo del rechazo (opcional):');
+             await responderSolicitud(id, 'Rechazado', comentario);
+          }
+
+        async function responderSolicitud(id, estado, comentario) {
+             const token = localStorage.getItem('token');
+
+          try {
+           const response = await fetch('/api/intercambios/responder', {
+          method: 'POST',
+          headers: {
+           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+          },
+               body: JSON.stringify({
+             intercambioId: id,
+          estado: estado,
+                 comentarioPropietario: comentario || ""
+         })
+          });
+
+              const data = await response.json();
+
+                if (response.ok) {
+             alert(`Solicitud ${estado.toLowerCase()} exitosamente`);
+              await cargarSolicitudesPendientes();
+           } else {
+              // Mejorar el manejo de errores
+          const errorMsg = data.mensaje || data.Message || data.title || 'Error al responder solicitud';
+                let errorCompleto = errorMsg;
+
+         // Si hay errores de validación
+                if (data.errors) {
+          const detalles = Object.values(data.errors).flat().join(', ');
+             errorCompleto += `\n\nDetalles: ${detalles}`;
+                }
+
+           alert(`Error: ${errorCompleto}`);
+                console.error('Error completo:', data);
+                }
+         } catch (error) {
+                console.error('Error:', error);
+           alert(`Error de conexión: ${error.message}`);
+            }
+        }
+
+                async function cancelarSolicitud(id) {
+             if (!confirm('¿Cancelar esta solicitud?')) return;
+
+             const token = localStorage.getItem('token');
+
+             try {
+                const response = await fetch(`/api/intercambios/${id}/cancelar`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+             });
+
+         if (response.ok) {
+                alert('Solicitud cancelada');
+           document.getElementById('lista-enviadas').innerHTML = '';
+                await cargarSolicitudesEnviadas();
+        }
+          } catch (error) {
+        console.error('Error:', error);
+            }
+         }
+
+                async function completarIntercambio(id) {
+          if (!confirm('¿Confirmar que el intercambio se completó exitosamente?')) return;
+
+             const token = localStorage.getItem('token');
+
+          try {
+         const response = await fetch(`/api/intercambios/${id}/completar`, {
+         method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          if (response.ok) {
+           alert('¡Intercambio completado exitosamente!');
+           document.getElementById('lista-enviadas').innerHTML = '';
+           await cargarSolicitudesEnviadas();
+          }
+         } catch (error) {
+          console.error('Error:', error);
+           }
+         }
+    </script>
+}

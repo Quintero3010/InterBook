@@ -1,0 +1,106 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - InterBook</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header>
+        <nav class="navbar-custom">
+            <div class="container">
+                <div class="d-flex justify-content-between align-items-center w-100">
+                    <a class="navbar-brand-custom" href="/">
+                        <span class="brand-icon">📚</span>
+                        InterBook
+                    </a>
+                    <div class="d-flex align-items-center gap-3">
+                        <a class="nav-link-custom" href="/">Inicio</a>
+                        <a class="nav-link-custom" href="/Home/Explorar">Explorar</a>
+                        <a class="nav-link-custom" href="/Home/MisLibros" id="nav-mis-libros" style="display: none;">Mis Libros</a>
+                        <a class="nav-link-custom" href="/Home/Intercambios" id="nav-intercambios" style="display: none;">Intercambios</a>
+                        <a class="btn-login" href="/Home/Login" id="btn-login">Iniciar Sesión</a>
+
+                        <div id="user-menu" style="display: none;">
+                            <span class="text-secondary fw-bold me-3 d-inline-flex align-items-center gap-1" style="font-size: 0.95rem;">
+                                <i class="bi bi-person-circle text-primary fs-5"></i>
+                                <span id="user-name"></span>
+                            </span>
+                            <button class="btn btn-sm btn-outline-danger" onclick="cerrarSesion()">Cerrar Sesión</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main role="main">
+        @RenderBody()
+    </main>
+
+    <footer class="footer-custom">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 footer-section">
+                    <h3 class="footer-title">📚 InterBook</h3>
+                    <p class="footer-text">
+                        La plataforma líder en intercambio de libros.
+                        Conectando lectores, compartiendo historias.
+                    </p>
+                </div>
+                <div class="col-md-4 footer-section">
+                    <h3 class="footer-title">Enlaces Rápidos</h3>
+                    <ul class="footer-links">
+                        <li><a href="#">Acerca de</a></li>
+                        <li><a href="#">Cómo Funciona</a></li>
+                        <li><a href="#">Blog</a></li>
+                        <li><a href="#">Contacto</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4 footer-section">
+                    <h3 class="footer-title">Legal</h3>
+                    <ul class="footer-links">
+                        <li><a href="#">Términos y Condiciones</a></li>
+                        <li><a href="/Home/Privacy">Política de Privacidad</a></li>
+                        <li><a href="#">Cookies</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 InterBook. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    <script>
+        // Verificar si el usuario está logueado
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('token');
+            const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+
+            if (token && usuario.nombre) {
+                document.getElementById('btn-login').style.display = 'none';
+                document.getElementById('user-menu').style.display = 'block';
+                document.getElementById('nav-mis-libros').style.display = 'inline';
+                document.getElementById('nav-intercambios').style.display = 'inline';
+                document.getElementById('user-name').textContent = usuario.nombre;
+            }
+        });
+
+        function cerrarSesion() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('usuario');
+            window.location.href = '/';
+        }
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

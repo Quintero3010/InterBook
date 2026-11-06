@@ -1,0 +1,422 @@
+﻿@{
+    ViewData["Title"] = "Explorar Libros - InterBook";
+}
+
+<div class="container my-5">
+    <div class="row mb-4">
+   <div class="col-md-12">
+            <h2 class="section-title"> Explorar Libros Disponibles</h2>
+            <p class="text-muted">Encuentra libros interesantes para intercambiar</p>
+        </div>
+    </div>
+
+    <!-- Filtros de búsqueda -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+     <div class="col-md-4">
+  <input type="text" class="form-control" id="busqueda" placeholder="🔍 Buscar por título o autor...">
+         </div>
+           <div class="col-md-3">
+       <select class="form-select" id="categoriaFiltro">
+  <option value="">Todas las categorías</option>
+    <option value="Ficción">Ficción</option>
+       <option value="No Ficción">No Ficción</option>
+         <option value="Ciencia Ficción">Ciencia Ficción</option>
+               <option value="Fantasía">Fantasía</option>
+<option value="Romance">Romance</option>
+      <option value="Misterio">Misterio</option>
+            <option value="Terror">Terror</option>
+  <option value="Historia">Historia</option>
+      <option value="Tecnología">Tecnología</option>
+               <option value="Clásicos">Clásicos</option>
+          <option value="Literatura Latinoamericana">Literatura Latinoamericana</option>
+       <option value="Ficción Distópica">Ficción Distópica</option>
+           </select>
+              </div>
+      <div class="col-md-3">
+  <input type="text" class="form-control" id="ciudadFiltro" placeholder="🌍 Ciudad">
+   </div>
+  <div class="col-md-2">
+            <button class="btn btn-primary w-100" onclick="buscarLibros()">
+   <i class="bi bi-search"></i> Buscar
+      </button>
+      </div>
+ </div>
+        </div>
+    </div>
+
+    <div id="loading-spinner" class="text-center my-5">
+        <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Cargando...</span>
+        </div>
+      <p class="mt-3">Cargando libros disponibles...</p>
+    </div>
+
+    <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+ 
+    <div id="sin-libros" class="text-center my-5" style="display: none;">
+        <div class="empty-state">
+<i class="bi bi-book" style="font-size: 4rem; color: #ccc;"></i>
+      <h4 class="mt-3">No se encontraron libros</h4>
+ <p class="text-muted">Intenta con otros filtros de búsqueda</p>
+        </div>
+    </div>
+
+    <div id="libros-container" class="row g-4" style="display: none;"></div>
+</div>
+
+<!-- Modal para solicitar intercambio -->
+<div class="modal fade" id="modalIntercambio" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+   <div class="modal-content">
+   <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title">🔄 Solicitar Intercambio</h5>
+       <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+        <div class="modal-body">
+        <div id="modal-error" class="alert alert-danger" style="display: none;"></div>
+         
+           <div class="row">
+     <div class="col-md-6">
+   <h6 class="text-primary">Libro que deseas:</h6>
+            <div id="libro-solicitado-info"></div>
+     </div>
+<div class="col-md-6">
+   <h6 class="text-success">Tu libro para intercambiar:</h6>
+           <select class="form-select" id="libroOfrecidoSelect">
+       <option value="">Selecciona uno de tus libros...</option>
+   </select>
+        <div id="libro-ofrecido-info" class="mt-3"></div>
+      </div>
+   </div>
+
+      <div class="mt-4">
+      <label for="comentario" class="form-label">Mensaje para el propietario (opcional):</label>
+         <textarea class="form-control" id="comentario" rows="3" 
+        placeholder="Ej: Hola, me interesa mucho tu libro..."></textarea>
+           </div>
+
+   <div class="row mt-3">
+  <div class="col-md-6">
+           <label for="lugarEncuentro" class="form-label">Lugar de encuentro sugerido:</label>
+        <input type="text" class="form-control" id="lugarEncuentro" 
+  placeholder="Ej: Café cerca del parque...">
+   </div>
+               <div class="col-md-6">
+           <label for="fechaEncuentro" class="form-label">Fecha sugerida:</label>
+       <input type="date" class="form-control" id="fechaEncuentro">
+        </div>
+         </div>
+       </div>
+  <div class="modal-footer">
+     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+           <button type="button" class="btn btn-primary" onclick="enviarSolicitudIntercambio()">
+   <i class="bi bi-send"></i> Enviar Solicitud
+     </button>
+      </div>
+    </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let libroSolicitadoId = null;
+        let misLibros = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+   await cargarLibrosDisponibles();
+            await cargarMisLibrosParaIntercambio();
+        });
+
+        async function cargarLibrosDisponibles() {
+       const loadingSpinner = document.getElementById('loading-spinner');
+     const errorMessage = document.getElementById('error-message');
+            const sinLibros = document.getElementById('sin-libros');
+const librosContainer = document.getElementById('libros-container');
+
+    try {
+     const response = await fetch('/api/libros?soloDisponibles=true&tamañoPagina=50');
+
+  if (!response.ok) {
+        throw new Error('Error al cargar los libros');
+         }
+
+       const data = await response.json();
+   const libros = data.elementos || data;
+
+      loadingSpinner.style.display = 'none';
+
+      if (libros.length === 0) {
+      sinLibros.style.display = 'block';
+  } else {
+         librosContainer.style.display = 'flex';
+          mostrarLibros(libros);
+            }
+            } catch (error) {
+      console.error('Error:', error);
+   loadingSpinner.style.display = 'none';
+         errorMessage.textContent = 'Error al cargar los libros. Por favor, intenta de nuevo.';
+   errorMessage.style.display = 'block';
+          }
+        }
+
+        async function buscarLibros() {
+  const termino = document.getElementById('busqueda').value;
+        const categoria = document.getElementById('categoriaFiltro').value;
+            const ciudad = document.getElementById('ciudadFiltro').value;
+
+            const loadingSpinner = document.getElementById('loading-spinner');
+    const librosContainer = document.getElementById('libros-container');
+  const sinLibros = document.getElementById('sin-libros');
+
+         librosContainer.style.display = 'none';
+            sinLibros.style.display = 'none';
+        loadingSpinner.style.display = 'block';
+
+      try {
+         const params = new URLSearchParams({
+       soloDisponibles: true,
+        tamañoPagina: 50
+            });
+
+    if (termino) params.append('terminoBusqueda', termino);
+       if (categoria) params.append('categoria', categoria);
+       if (ciudad) params.append('ciudad', ciudad);
+
+                const response = await fetch(`/api/libros?${params}`);
+     const data = await response.json();
+   const libros = data.elementos || data;
+
+         loadingSpinner.style.display = 'none';
+
+  if (libros.length === 0) {
+     sinLibros.style.display = 'block';
+    } else {
+          librosContainer.style.display = 'flex';
+     mostrarLibros(libros);
+     }
+      } catch (error) {
+     console.error('Error:', error);
+    loadingSpinner.style.display = 'none';
+  }
+        }
+
+        function mostrarLibros(libros) {
+         const container = document.getElementById('libros-container');
+  const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+      container.innerHTML = '';
+
+   libros.forEach(libro => {
+                // No mostrar libros propios
+     if (libro.usuarioId === usuario.id) return;
+
+          const card = `
+           <div class="col-md-6 col-lg-4">
+        <div class="card book-card h-100">
+          <img src="${libro.imagenUrl || 'https://via.placeholder.com/200x300?text=' + encodeURIComponent(libro.titulo)}" 
+     class="card-img-top" alt="${libro.titulo}" style="height: 300px; object-fit: cover;">
+ <div class="card-body">
+         <h5 class="card-title">${libro.titulo}</h5>
+    <p class="card-text text-muted mb-2">
+        <i class="bi bi-person"></i> ${libro.autor}
+  </p>
+      <p class="card-text mb-2">
+     <span class="badge bg-secondary">${libro.categoria || 'Sin categoría'}</span>
+   <span class="badge bg-primary">${libro.estadoFisico}</span>
+    </p>
+          <p class="card-text small text-muted mb-2">
+       <i class="bi bi-geo-alt"></i> ${libro.ubicacion || 'No especificado'}
+          </p>
+           <p class="card-text small text-muted mb-3">
+           <i class="bi bi-person-circle"></i> Propietario: ${libro.nombrePropietario || 'Usuario'}
+     </p>
+       ${libro.descripcion ? `<p class="card-text small">${libro.descripcion.substring(0, 100)}...</p>` : ''}
+  <div class="d-grid mt-3">
+         <button class="btn btn-primary" onclick="abrirModalIntercambio(${libro.id}, '${libro.titulo.replace(/'/g, "\\'")}', '${libro.autor.replace(/'/g, "\\'")}', '${libro.imagenUrl || ''}', '${libro.estadoFisico}')">
+      <i class="bi bi-arrow-left-right"></i> Solicitar Intercambio
+        </button>
+       </div>
+  </div>
+    </div>
+    </div>
+                `;
+             container.innerHTML += card;
+    });
+        }
+
+   async function cargarMisLibrosParaIntercambio() {
+   const token = localStorage.getItem('token');
+       if (!token) return;
+
+try {
+           const response = await fetch('/api/libros/mis-libros', {
+  headers: {
+            'Authorization': `Bearer ${token}`
+           }
+       });
+
+ if (response.ok) {
+misLibros = await response.json();
+                 const select = document.getElementById('libroOfrecidoSelect');
+     
+    misLibros.forEach(libro => {
+  if (libro.estadoDisponibilidad === 'Disponible') {
+              const option = document.createElement('option');
+   option.value = libro.id;
+option.textContent = `${libro.titulo} - ${libro.autor}`;
+              select.appendChild(option);
+         }
+           });
+
+  // Mostrar info del libro seleccionado
+     select.addEventListener('change', function() {
+              const libroId = parseInt(this.value);
+                const libro = misLibros.find(l => l.id === libroId);
+        const infoDiv = document.getElementById('libro-ofrecido-info');
+ 
+        if (libro) {
+              infoDiv.innerHTML = `
+   <div class="border rounded p-2">
+          <img src="${libro.imagenUrl || 'https://via.placeholder.com/100x150'}" 
+  alt="${libro.titulo}" style="width: 80px; height: 120px; object-fit: cover;" class="float-start me-2">
+      <strong>${libro.titulo}</strong><br>
+           <small>${libro.autor}</small><br>
+    <span class="badge bg-primary">${libro.estadoFisico}</span>
+        </div>
+      `;
+             } else {
+      infoDiv.innerHTML = '';
+  }
+          });
+            }
+            } catch (error) {
+     console.error('Error al cargar mis libros:', error);
+            }
+ }
+
+      function abrirModalIntercambio(id, titulo, autor, imagen, estadoFisico) {
+            const token = localStorage.getItem('token');
+            
+    if (!token) {
+                alert('Debes iniciar sesión para solicitar un intercambio');
+     window.location.href = '/Home/Login';
+ return;
+ }
+
+            if (misLibros.filter(l => l.estadoDisponibilidad === 'Disponible').length === 0) {
+    alert('No tienes libros disponibles para intercambiar. Publica un libro primero.');
+       window.location.href = '/Home/PublicarLibro';
+     return;
+      }
+
+        libroSolicitadoId = id;
+
+       const libroInfo = `
+     <div class="border rounded p-2">
+       <img src="${imagen || 'https://via.placeholder.com/100x150'}" 
+            alt="${titulo}" style="width: 80px; height: 120px; object-fit: cover;" class="float-start me-2">
+         <strong>${titulo}</strong><br>
+         <small>${autor}</small><br>
+         <span class="badge bg-primary">${estadoFisico}</span>
+                </div>
+         `;
+
+   document.getElementById('libro-solicitado-info').innerHTML = libroInfo;
+            document.getElementById('modal-error').style.display = 'none';
+
+     const modal = new bootstrap.Modal(document.getElementById('modalIntercambio'));
+ modal.show();
+        }
+
+     async function enviarSolicitudIntercambio() {
+    const libroOfrecidoId = parseInt(document.getElementById('libroOfrecidoSelect').value);
+    const comentario = document.getElementById('comentario').value;
+     const lugarEncuentro = document.getElementById('lugarEncuentro').value;
+       const fechaEncuentro = document.getElementById('fechaEncuentro').value;
+    const modalError = document.getElementById('modal-error');
+
+            modalError.style.display = 'none';
+
+          if (!libroOfrecidoId) {
+  modalError.textContent = 'Debes seleccionar uno de tus libros';
+    modalError.style.display = 'block';
+           return;
+            }
+
+            const token = localStorage.getItem('token');
+
+   try {
+           const response = await fetch('/api/intercambios/solicitar', {
+           method: 'POST',
+ headers: {
+       'Content-Type': 'application/json',
+   'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
+         libroOfrecidoId: libroOfrecidoId,
+        libroSolicitadoId: libroSolicitadoId,
+  comentarioSolicitante: comentario,
+       lugarEncuentro: lugarEncuentro,
+             fechaEncuentro: fechaEncuentro ? new Date(fechaEncuentro).toISOString() : null
+       })
+                });
+
+           const data = await response.json();
+
+       if (response.ok) {
+             alert('¡Solicitud de intercambio enviada exitosamente!');
+        bootstrap.Modal.getInstance(document.getElementById('modalIntercambio')).hide();
+       await cargarLibrosDisponibles();
+  } else {
+          // Mostrar el mensaje de error completo del servidor
+              const errorMensaje = data.mensaje || data.Message || data.title || 'Error al enviar la solicitud';
+                modalError.textContent = errorMensaje;
+      
+            // Si hay detalles adicionales en el error
+    if (data.errors) {
+       const detalles = Object.values(data.errors).flat().join(', ');
+          modalError.textContent += `: ${detalles}`;
+        }
+
+    modalError.style.display = 'block';
+    
+  // Log para debugging
+      console.error('Error completo:', data);
+   }
+  } catch (error) {
+     console.error('Error:', error);
+        modalError.textContent = `Error de conexión: ${error.message}. Por favor, intenta de nuevo.`;
+        modalError.style.display = 'block';
+            }
+        }
+    </script>
+}
+
+<style>
+    .book-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border-radius: 10px;
+  overflow: hidden;
+    }
+
+  .book-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    }
+
+ .empty-state {
+        padding: 3rem;
+        background: #f8f9fa;
+        border-radius: 10px;
+    }
+
+    .section-title {
+    color: #2c3e50;
+        font-weight: 700;
+    }
+
+    .card-img-top {
+        border-bottom: 3px solid #f0f0f0;
+    }
+</style>
